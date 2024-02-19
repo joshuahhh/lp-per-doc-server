@@ -2,50 +2,8 @@ import { AutomergeUrl, DocHandle, Repo } from "@automerge/automerge-repo";
 import { BrowserWebSocketClientAdapter } from "@automerge/automerge-repo-network-websocket";
 import * as child_process from "node:child_process";
 import * as fsP from "node:fs/promises";
+import { BuildOutput, BuildsDoc, Result, getLatestBuild, getLatestSuccessfulBuild } from "./lp-shared.js";
 
-type BuildsDoc = {
-  builds: { [buildId: string]: Build },
-}
-
-type Build = {
-  id: string,
-  startTime: Date,
-  result:
-    | Result<BuildOutput, string> & {
-        finishTime: Date,
-        stdout: string,
-        stderr: string,
-      }
-    | null,
-}
-
-type Result<T, E = Error> =
-  | { ok: true, value: T }
-  | { ok: false, error: E };
-
-type BuildOutput = {
-  pdf: Uint8Array,
-}
-
-// async function waitForHandle(handle: DocHandle<unknown>) {
-//   return new Promise<void>((resolve) => {
-//     if (handle.isReady()) {
-//       resolve();
-//     } else {
-//       console.log("setting up listener");
-//       const listener = () => {
-//         console.log("change!")
-//         if (handle.isReady()) {
-//           console.log("ready!");
-//           handle.removeListener("change", listener);
-//           resolve();
-//         }
-//       }
-//       handle.addListener("change", listener);
-//     }
-//   });
-
-// }
 
 async function main() {
   const [_1, _2, srcUrl, dstUrl] = process.argv;
@@ -72,11 +30,11 @@ async function main() {
       throw new Error("dst doc not found");
     }
     if (!doc.builds) {
-      dstHandle.change((doc: BuildsDoc) => {
+      dstHandle.change((doc) => {
         doc.builds = {};
       });
     }
-    dstHandle.change((doc: BuildsDoc) => {
+    dstHandle.change((doc) => {
       doc.builds[buildId] = {
         id: buildId,
         startTime: new Date(),
@@ -84,8 +42,8 @@ async function main() {
       };
     });
   }
-  function setBuildResult(buildId: string, result: Result<BuildOutput, string>, stdout: string, stderr: string) {
-    dstHandle.change((doc: BuildsDoc) => {
+  async function setBuildResult(buildId: string, result: Result<BuildOutput, string>, stdout: string, stderr: string) {
+    dstHandle.change((doc) => {
       doc.builds[buildId].result = {
         ...result,
         finishTime: new Date(),
@@ -93,9 +51,10 @@ async function main() {
         stderr,
       };
     });
+    await cleanBuilds();
   }
-  function setBuildError(buildId: string, error: string, stdout: string, stderr: string) {
-    setBuildResult(buildId, { ok: false, error }, stdout, stderr);
+  async function setBuildError(buildId: string, error: string, stdout: string, stderr: string) {
+    await setBuildResult(buildId, { ok: false, error }, stdout, stderr);
   }
 
   const activeBuildJobs: { [buildId: string]: { abort: () => void } } = {};
@@ -107,15 +66,13 @@ async function main() {
 
   async function buildDoc(doc: any) {
     // TODO: maybe don't abort every previous job?
-    for (const [buildId, job] of Object.entries(activeBuildJobs)) {
-      job.abort();
-    }
+    abortAllJobs();
 
     const buildId = crypto.randomUUID();
     await initializeBuild(buildId);
 
     if (!('content' in doc) || typeof doc.content !== "string") {
-      setBuildError(buildId, "doc.content is missing or not string", "", "");
+      await setBuildError(buildId, "doc.content is missing or not string", "", "");
       return;
     }
     const content = doc.content;
@@ -149,14 +106,14 @@ async function main() {
       if (aborted) { return; }
       console.log("lpub exited", code);
       if (code !== 0) {
-        setBuildError(buildId, `lpub exited with code ${code}`, stdouts.join(), stderrs.join());
+        await setBuildError(buildId, `lpub exited with code ${code}`, stdouts.join(), stderrs.join());
         return;
       }
       try {
         const result = await fsP.readFile(`${buildDir}/index.pdf`);
-        setBuildResult(buildId, { ok: true, value: { pdf: result } }, stdouts.join(), stderrs.join());
+        await setBuildResult(buildId, { ok: true, value: { pdf: result } }, stdouts.join(), stderrs.join());
       } catch (e) {
-        setBuildError(buildId, "pdf file not written", stdouts.join(), stderrs.join());
+        await setBuildError(buildId, "pdf file not written", stdouts.join(), stderrs.join());
       }
       await fsP.rm(`${buildId}`, {recursive: true, force: true});
     });
@@ -180,7 +137,7 @@ async function main() {
         const dst = await dstHandle.doc();
         if (dst) {
           if (dst.builds[buildId] && dst.builds[buildId].result === null) {
-            setBuildError(buildId, "aborted", stdouts.join(), stderrs.join());
+            await setBuildError(buildId, "aborted", stdouts.join(), stderrs.join());
           }
         } else {
           console.error("dst doc not found", dstUrl);
@@ -190,13 +147,33 @@ async function main() {
     };
   }
 
+  async function cleanBuilds() {
+    // current scheme is that we only keep two documents: latest build and latest successful build
+    try {
+      const dst = await dstHandle.doc();
+      if (!dst) { throw new Error(`dst doc not found ${dstUrl}`); }
+      const latestBuild = getLatestBuild(dst);
+      const latestSuccessfulBuild = getLatestSuccessfulBuild(dst);
+      dstHandle.change((doc) => {
+        // TODO: idk how much to put in or outside of dstHandle, dst vs doc, etc.
+        for (const buildId of Object.keys(dst.builds)) {
+          if (latestBuild?.id !== buildId && latestSuccessfulBuild?.id !== buildId) {
+            delete doc.builds[buildId];
+          }
+        }
+      });
+    } catch (e) {
+      console.error("error cleaning builds", e);
+    }
+  }
+
   srcHandle.addListener("change", async (e) => {
     console.log("change!");
     await buildDoc(e.doc);
   });
 
   function abortAllJobs() {
-    for (const [buildId, job] of Object.entries(activeBuildJobs)) {
+    for (const job of Object.values(activeBuildJobs)) {
       job.abort();
     }
   }
