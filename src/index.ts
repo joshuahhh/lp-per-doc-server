@@ -2,7 +2,7 @@ import { AutomergeUrl, DocHandle, Repo } from "@automerge/automerge-repo";
 import { BrowserWebSocketClientAdapter } from "@automerge/automerge-repo-network-websocket";
 import * as child_process from "node:child_process";
 import * as fsP from "node:fs/promises";
-import { BuildOutput, BuildsDoc, Result, getLatestBuild, getLatestSuccessfulBuild } from "./lp-shared.js";
+import { BuildOutput, BuildsDoc, Result, getLatestBuild, getLatestSuccessfulBuild, writeNewFile } from "./lp-shared.js";
 
 
 async function main() {
@@ -86,7 +86,7 @@ async function main() {
 
     let aborted = false;
 
-    const child = child_process.spawn("npx lpub", ["-o", buildDir, "--tempDir", tempDir, "index.md"], {
+    const child = child_process.spawn("node_modules/.bin/lpub", ["-o", buildDir, "--tempDir", tempDir, "index.md"], {
       shell: true,
       detached: true,
       stdio: ["ignore", "pipe", "pipe"],
@@ -111,7 +111,8 @@ async function main() {
       }
       try {
         const result = await fsP.readFile(`${buildDir}/index.pdf`);
-        await setBuildResult(buildId, { ok: true, value: { pdf: result } }, stdouts.join(), stderrs.join());
+        const pdfUrl = await writeNewFile(repo, result);
+        await setBuildResult(buildId, { ok: true, value: { pdfUrl } }, stdouts.join(), stderrs.join());
       } catch (e) {
         await setBuildError(buildId, "pdf file not written", stdouts.join(), stderrs.join());
       }

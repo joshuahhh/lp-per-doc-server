@@ -7,7 +7,8 @@
   "scripts": {
     "dev": "tsx src/index.ts",
     "build": "tsc",
-    "docker:build": "docker build -t joshuahhh/lp-per-doc-server ."
+    "docker:build": "./docker-build.sh",
+    "docker:push": "./docker-push.sh"
   },
   "author": "",
   "license": "ISC",
