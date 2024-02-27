@@ -1,9 +1,17 @@
 #!/bin/bash
 set -e
 
+if [ -n "$(git status --porcelain)" ]; then
+  echo "Uncommitted changes"
+  exit 1
+fi
+
+VERSION=$(git log -1 --pretty=%h)
+export VERSION
+
 job() {
   echo Running job $1
-  docker build --platform linux/$1 -t joshuahhh/lp-per-doc-server-$1 . && exit
+  docker build --platform linux/$1 -t joshuahhh/lp-per-doc-server-$1:$VERSION . && exit
   echo Problem with job $1!
   sleep 5
 }
