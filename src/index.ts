@@ -13,7 +13,9 @@ async function main() {
     process.exit(1);
   }
 
-  console.log("welcome");
+  console.log("welcome to lp-per-doc-server");
+  console.log("srcUrl", srcUrl);
+  console.log("dstUrl", dstUrl);
 
   const repo = new Repo({
     network: [

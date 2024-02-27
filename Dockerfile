@@ -5,6 +5,7 @@ RUN apk update
 RUN apk add --update texlive
 RUN apk add --update texmf-dist-latexextra
 RUN apk add --update pandoc
+RUN apk add --update py3-pygments
 RUN apk add --update nodejs
 RUN apk add --update npm
 

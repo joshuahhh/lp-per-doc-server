@@ -5,6 +5,7 @@ job() {
   echo Running job $1
   docker build --platform linux/$1 -t joshuahhh/lp-per-doc-server-$1 . && exit
   echo Problem with job $1!
+  sleep 5
 }
 export -f job
 
