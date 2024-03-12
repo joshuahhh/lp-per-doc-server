@@ -3,7 +3,7 @@ import { BrowserWebSocketClientAdapter } from "@automerge/automerge-repo-network
 import * as child_process from "node:child_process";
 import * as fsP from "node:fs/promises";
 import { BuildOutput, BuildsDoc, Result, getLatestBuild, getLatestSuccessfulBuild, writeNewFile } from "./lp-shared.js";
-import { push } from "./push.js";
+import { push } from "./pushToAutomerge.js";
 
 
 async function main() {
