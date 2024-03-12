@@ -30,7 +30,7 @@ export type Result<T, E = Error> =
   | { ok: false, error: E };
 
 export type BuildOutput = {
-  pdfUrl: AutomergeUrl,
+  pdfUrl: AutomergeUrl | null,
   buildDirUrl: AutomergeUrl | null,
 }
 

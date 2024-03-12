@@ -3,7 +3,7 @@ import { BrowserWebSocketClientAdapter } from "@automerge/automerge-repo-network
 import * as child_process from "node:child_process";
 import * as fsP from "node:fs/promises";
 import { BuildOutput, BuildsDoc, Result, getLatestBuild, getLatestSuccessfulBuild, writeNewFile } from "./lp-shared.js";
-import { push } from "./pushToAutomerge.js";
+import { pushToAutomerge } from "./pushToAutomerge.js";
 
 
 async function main() {
@@ -113,12 +113,21 @@ async function main() {
         return;
       }
       try {
-        const result = await fsP.readFile(`${buildDir}/index.pdf`);
-        const pdfUrl = await writeNewFile(repo, result);
+        let pdfUrl: AutomergeUrl | null = null;
+        try {
+          const pdfContents = await fsP.readFile(`${buildDir}/index.pdf`);
+          pdfUrl = await writeNewFile(repo, pdfContents);
+        } catch (e) {
+          console.error("error writing pdf", e);
+        }
 
         let buildDirUrl: AutomergeUrl | null = null;
         try {
-          buildDirUrl = await push({ dir: buildDir, repo })
+          buildDirUrl = await pushToAutomerge({
+            dir: buildDir,
+            repo,
+            ignorePath: (path) => path === "index.pdf"
+          });
         } catch (e) {
           console.error("error pushing build dir", e);
         }

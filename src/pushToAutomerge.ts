@@ -11,8 +11,9 @@ export async function pushToAutomerge(opts: {
   repo: Repo,
   dir: string,
   automergeDocUrl?: AnyDocumentId,
+  ignorePath?: (path: string) => boolean,
 }): Promise<AutomergeUrl> {
-  const { repo, dir, automergeDocUrl } = opts;
+  const { repo, dir, automergeDocUrl, ignorePath } = opts;
 
   let handle: DocHandle<Node>;
   if (automergeDocUrl !== undefined) {
@@ -26,7 +27,7 @@ export async function pushToAutomerge(opts: {
     handle = repo.create();
   }
 
-  const node = createNode(dir);
+  const node = createNode(dir, ignorePath);
 
   handle.change((d: Node) => {
     Object.assign(d, node);
@@ -46,14 +47,18 @@ type FileNode = {
 
 type DirNode = { [entry: string]: Node };
 
-function createNode(filePath: string): Node {
+function createNode(filePath: string, ignorePath?: (path: string) => boolean): Node {
   const stats = fs.lstatSync(filePath);
 
   if (stats.isDirectory()) {
-    const files = fs.readdirSync(filePath);
-    return Object.fromEntries(files.map((file) =>
-      [file, createNode(path.join(filePath, file))]
-    ));
+    const result: DirNode = {};
+    const children = fs.readdirSync(filePath);
+    for (const child of children) {
+      const childPath = path.join(filePath, child);
+      if (ignorePath && ignorePath(childPath)) { continue; }
+      result[child] = createNode(childPath, ignorePath);
+    }
+    return result;
   } else if (stats.isFile()) {
     const ext = path.extname(filePath).toLowerCase();
     const isBinary = isBinaryFileSync(filePath);
