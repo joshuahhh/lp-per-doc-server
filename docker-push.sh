@@ -1,12 +1,14 @@
 #!/bin/bash
 set -e
 
-docker push joshuahhh/lp-per-doc-server-amd64
-docker push joshuahhh/lp-per-doc-server-arm64
+VERSION=$(git log -1 --pretty=%h)
+
+docker push joshuahhh/lp-per-doc-server-amd64:$VERSION
+docker push joshuahhh/lp-per-doc-server-arm64:$VERSION
 
 docker manifest create \
-  joshuahhh/lp-per-doc-server \
-  --amend joshuahhh/lp-per-doc-server-amd64 \
-  --amend joshuahhh/lp-per-doc-server-arm64
+  joshuahhh/lp-per-doc-server:$VERSION \
+  --amend joshuahhh/lp-per-doc-server-amd64:$VERSION \
+  --amend joshuahhh/lp-per-doc-server-arm64:$VERSION
 
-docker manifest push joshuahhh/lp-per-doc-server
+docker manifest push joshuahhh/lp-per-doc-server:$VERSION

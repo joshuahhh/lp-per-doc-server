@@ -31,6 +31,7 @@ export type Result<T, E = Error> =
 
 export type BuildOutput = {
   pdfUrl: AutomergeUrl,
+  buildDirUrl: AutomergeUrl | null,
 }
 
 export type SuccessfulBuild = Build & { result: { ok: true } }

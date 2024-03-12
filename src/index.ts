@@ -3,6 +3,7 @@ import { BrowserWebSocketClientAdapter } from "@automerge/automerge-repo-network
 import * as child_process from "node:child_process";
 import * as fsP from "node:fs/promises";
 import { BuildOutput, BuildsDoc, Result, getLatestBuild, getLatestSuccessfulBuild, writeNewFile } from "./lp-shared.js";
+import { push } from "./push.js";
 
 
 async function main() {
@@ -114,7 +115,15 @@ async function main() {
       try {
         const result = await fsP.readFile(`${buildDir}/index.pdf`);
         const pdfUrl = await writeNewFile(repo, result);
-        await setBuildResult(buildId, { ok: true, value: { pdfUrl } }, stdouts.join(), stderrs.join());
+
+        let buildDirUrl: AutomergeUrl | null = null;
+        try {
+          buildDirUrl = await push({ dir: buildDir, repo })
+        } catch (e) {
+          console.error("error pushing build dir", e);
+        }
+
+        await setBuildResult(buildId, { ok: true, value: { pdfUrl, buildDirUrl } }, stdouts.join(), stderrs.join());
       } catch (e) {
         await setBuildError(buildId, "pdf file not written", stdouts.join(), stderrs.join());
       }

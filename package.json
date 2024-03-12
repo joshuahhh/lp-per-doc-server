@@ -16,7 +16,11 @@
     "@automerge/automerge-repo": "^1.1.1",
     "@automerge/automerge-repo-network-websocket": "^1.1.1",
     "@living-papers/cli": "^0.1.7",
+    "mime-types": "^2.1.35",
     "remeda": "^1.43.0",
     "tsx": "^4.7.1"
+  },
+  "devDependencies": {
+    "@types/mime-types": "^2.1.4"
   }
 }
