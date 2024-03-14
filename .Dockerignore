@@ -1,5 +1,7 @@
-.git
-node_modules
-lib
-.cache
-.vscode
+**
+
+!src
+!types.d.ts
+!package.json
+!package-lock.json
+!tsconfig.json
